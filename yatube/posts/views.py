@@ -60,9 +60,12 @@ def post_detail(request, post_id):
     """Здесь код запроса к модели и создание словаря контекста."""
     post = get_object_or_404(Post, id=post_id)
     comment_list = post.comments.all()
+    form = CommentForm(
+        request.POST or None,
+    )
     context = {
         'post': post,
-        'form': CommentForm,
+        'CommentForm': form,
         'comment_list': comment_list,
     }
     return render(request, 'posts/post_detail.html', context)
@@ -137,9 +140,9 @@ def follow_index(request):
 def profile_follow(request, username):
     # Подписаться на автора
     author = get_object_or_404(User, username=username)
-    if author != request.user:
+    if request.user != author:
         Follow.objects.get_or_create(user=request.user, author=author)
-        return redirect('posts:profile', author)
+    return redirect('posts:index')
 
 
 @login_required

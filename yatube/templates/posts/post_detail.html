@@ -57,8 +57,8 @@
           <!-- action ведет на обработчик формы  -->
           <form method="post" action={% url 'posts:add_comment' post.id %}>         
             {% csrf_token %}
-            {{ form.non_field_errors }}
-            {% for field in form %}
+            {{ CommentForm.non_field_errors }}
+            {% for field in CommentForm %}
               <div class="form-group row my-3 p-3">
                 {{ field.errors }}
                 {{ field.label_tag }} 
