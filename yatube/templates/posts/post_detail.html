@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %} Пост {{ post.text }} {% endblock  %}
+
+{% block content %}
+{% load thumbnail %}
+  <div class="row">
+    <aside class="col-12 col-md-3">
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          Дата публикации: {{ post.pub_date|date:"d E Y" }} 
+        </li>
+        {% if post.group %}
+          <li class="list-group-item">
+            Группа: {{ post.group.title }}
+            <a href="{% url 'posts:group_post' post.group.slug %}">
+              все записи группы
+            </a>
+          </li>
+        {% endif %} 
+        <li class="list-group-item">
+          Автор: {% if post.author.get_full_name %}
+            {{ post.author.get_full_name }}
+          {% else %}
+            {{ post.author }}
+          {% endif %}
+        </li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          Всего постов автора:  <span >{{ post.author.post.count }}</span>
+        </li>
+        <li class="list-group-item">
+          <a href="{% url 'posts:profile' post.author.username %}">
+            все посты пользователя
+          </a>
+        </li>
+      </ul>
+    </aside>
+    <article class="col-12 col-md-9">
+      {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+        <img class="card-img my-2" src="{{ im.url }}">
+      {% endthumbnail %}
+      <p>
+        {{ post.text }}
+      </p>
+      {% if user.id == post.author.id %}
+      <!-- что бы запомнить:
+      Лаконичнее сравнить экземпляры модели между собой.
+      Это сравнит их первичные ключи (ПК). -->
+        <a class="btn btn-primary" href="{% url 'posts:post_edit' post.id %}">
+          редактировать запись
+        </a>
+      {% endif %}
+      <!-- эта форма видна только авторизованному пользователю  -->
+      <div class="card my-4">
+        <h5 class="card-header">Добавить комментарий:</h5>
+        <div class="card-body">
+          <!-- action ведет на обработчик формы  -->
+          <form method="post" action={% url 'posts:add_comment' post.id %}>         
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}
+              <div class="form-group row my-3 p-3">
+                {{ field.errors }}
+                {{ field.label_tag }} 
+                {{ field }}
+                {{ field.type }}
+                {% if field.help_text %}
+                  <small id="id_text-help" class="form-text text-muted">
+                    {{ field.help_text }}
+                  </small>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary">Отправить</button>
+          </form>
+        </div>
+      </div>
+      <!-- комментарии перебираются в цикле  -->
+      {% for comment in comment_list %}
+        <div class="media mb-4">
+          <div class="media-body">
+            <h5 class="mt-0">
+              <a href={% url 'posts:profile' comment.author.username %}>
+                {% if post.author.get_full_name %}
+                  {{ post.author.get_full_name }}
+                {% else %}
+                  {{ post.author }}
+                {% endif %}
+              </a>
+            </h5>
+            <p>
+              {{ comment.text }}
+            </p>
+          </div>
+        </div>
+      {% endfor %}
+    </article>
+  </div> 
+{% endblock  %}

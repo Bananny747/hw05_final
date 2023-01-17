@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %} Это страница ваших подписок {% endblock  %}
+
+{% block content %}
+  <h1>Последние обновления в подписках</h1>
+  
+  {% include 'includes/switcher.html' %}
+  {% for post in page_obj %}
+    {% include 'includes/post_card.html' with stats='index' %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  
+  {% include 'includes/paginator.html' %}
+{% endblock %}
