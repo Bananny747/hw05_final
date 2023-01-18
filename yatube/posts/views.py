@@ -1,9 +1,10 @@
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import cache_page
+
 from .forms import PostForm, CommentForm
 from .models import Post, Group, User, Follow
-from django.views.decorators.cache import cache_page
 
 
 POSTS_ON_PAGE = 10
@@ -23,6 +24,7 @@ def index(request):
     post_list = Post.objects.all()
     context = {
         'page_obj': custom_paginator(request, post_list),
+        'index': True,
     }
     return render(request, template, context)
 
@@ -132,6 +134,7 @@ def follow_index(request):
     post_list = Post.objects.filter(author__following__user=request.user)
     context = {
         'page_obj': custom_paginator(request, post_list),
+        'follow': True,
     }
     return render(request, 'posts/follow.html', context)
 

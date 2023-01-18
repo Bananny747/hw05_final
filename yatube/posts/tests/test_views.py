@@ -13,13 +13,9 @@ from ..models import Group, Post
 
 User = get_user_model()
 
-# Создаем временную папку для медиа-файлов;
-# на момент теста медиа папка будет переопределена
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
-# Для сохранения media-файлов в тестах будет использоваться
-# временная папка TEMP_MEDIA_ROOT, а потом мы ее удалим
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostsPagesTests(TestCase):
     @classmethod
@@ -60,10 +56,6 @@ class PostsPagesTests(TestCase):
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
-        # Модуль shutil - библиотека Python с удобными инструментами
-        # для управления файлами и директориями:
-        # создание, удаление, и тд папок и файлов
-        # Метод shutil.rmtree удаляет директорию и всё её содержимое
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
@@ -79,15 +71,21 @@ class PostsPagesTests(TestCase):
         """Тест кэша, контент останется в ответе после удаления из базы."""
         cache_post = Post.objects.create(
             author=PostsPagesTests.user,
-            text='Пост для теста кэша',
+            text='Пост для кэша',
             group=None,
             image=None,
         )
-        response = self.client.get(reverse('posts:index'))
+        response = self.guest_client.get(reverse('posts:index'))
+        self.assertIn(cache_post, response.context['page_obj'])
         Post.objects.get(id=cache_post.id).delete()
-        self.assertTrue(cache_post in response.context['page_obj'])
+        # Повторное обращение к серверу после удаления
+        response = self.authorized_client.get(reverse('posts:index'))
+        self.assertIn(bytes(cache_post.text, 'utf-8'), response.content)
+        # Очищаем кэшё
+        cache.clear()
+        response2 = self.client.get(reverse('posts:index'))
+        self.assertFalse(cache_post in response2.context['page_obj'])
 
-    # Проверяем используемые шаблоны
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         # Собираем в словарь пары "reverse(name): имя_html_шаблона"
@@ -126,11 +124,12 @@ class PostsPagesTests(TestCase):
         response = self.client.get(reverse('posts:index'))
         # Взяли первый элемент из списка и проверили, что его содержание
         # совпадает с ожидаемым
+        image_path = 'posts/small.gif'
         first_object = response.context['page_obj'][0]
         self.assertEqual(first_object.text, 'Тестовый пост')
         self.assertEqual(first_object.author, PostsPagesTests.user)
         self.assertEqual(first_object.group, PostsPagesTests.group)
-        self.assertEqual(first_object.image, 'posts/small.gif')
+        self.assertEqual(first_object.image, image_path)
 
     def test_post_create_edit_page_show_correct_context(self):
         """Шаблоны post_create, _edit сформированы с правильным контекстом."""

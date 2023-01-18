@@ -29,7 +29,6 @@ class PostModelTest(TestCase):
         self.assertEqual(expected_group_value, str(group))
         self.assertEqual(expected_post_value, str(post))
 
-    # Вроде бы не являлось обязательной задачей, но я добавил
     def test_models_have_correct_object_names(self):
         """Проверяем, что у модели Post корректно работает
         verbose_name и help_text."""

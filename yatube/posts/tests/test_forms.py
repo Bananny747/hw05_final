@@ -3,22 +3,21 @@ import tempfile
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from ..forms import PostForm
 from ..models import Post, Group, Follow
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+
+from ..forms import PostForm
 
 
 User = get_user_model()
 
-# Создаем временную папку для медиа-файлов;
-# на момент теста медиа папка будет переопределена
+
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
-# Для сохранения media-файлов в тестах будет использоваться
-# временная папка TEMP_MEDIA_ROOT, а потом мы ее удалим
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostCreateEditFormTests(TestCase):
     @classmethod
@@ -46,16 +45,11 @@ class PostCreateEditFormTests(TestCase):
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
-        # Модуль shutil - библиотека Python с удобными инструментами
-        # для управления файлами и директориями:
-        # создание, удаление, и тд папок и файлов
-        # Метод shutil.rmtree удаляет директорию и всё её содержимое
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        # Создаем авторизованный клиент
+        self.guest_client = Client()
         self.authorized_client = Client()
-        # Авторизуем пользователя
         self.authorized_client.force_login(PostCreateEditFormTests.user)
         self.small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
@@ -70,10 +64,10 @@ class PostCreateEditFormTests(TestCase):
             content=self.small_gif,
             content_type='image/gif'
         )
+        cache.clear()
 
     def test_create_post(self):
         """Валидная форма создает запись в Post."""
-        # Подсчитаем количество записей в Post
         posts_count = Post.objects.count()
         form_data = {
             'text': 'Тестовый текст',
@@ -86,7 +80,6 @@ class PostCreateEditFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        # Через Post.objects.last() отказывался работать
         new_post = Post.objects.filter(text='Тестовый текст')[0]
         # Проверяем, сработал ли редирект
         self.assertRedirects(response, reverse(
@@ -104,7 +97,7 @@ class PostCreateEditFormTests(TestCase):
             'text': 'Тестовый текст комментария',
         }
         # Отправляем POST-запрос
-        response = Client().post(
+        response = self.guest_client.post(
             reverse('posts:add_comment',
                     args=[PostCreateEditFormTests.post.id]),
             data=form_data,
@@ -171,8 +164,6 @@ class PostCreateEditFormTests(TestCase):
 
     def test_create_user(self):
         """Валидная форма создает запись нового пользователя."""
-        # Создаем неавторизованный клиент
-        guest_client = Client()
         # Подсчитаем количество записей в User
         users_count = User.objects.count()
         form_data = {
@@ -181,7 +172,7 @@ class PostCreateEditFormTests(TestCase):
             'password2': 'test_password',
         }
         # Отправляем POST-запрос
-        guest_client.post(
+        self.guest_client.post(
             reverse('users:signup'),
             data=form_data,
             follow=True
@@ -215,7 +206,7 @@ class FollowCreateEditTests(TestCase):
         self.authorized_client_for_third_person.force_login(
             FollowCreateEditTests.third_person)
 
-    def test_authenticated_user_follow(self):
+    def test_authenticated_user_follow_unfollow(self):
         """Авторизованный пользователь может подписываться
         на других пользователей и удалять их из подписок."""
         self.authorized_client.post(
@@ -225,8 +216,12 @@ class FollowCreateEditTests(TestCase):
         )
         self.assertTrue(Follow.objects.filter(
             user=FollowCreateEditTests.user_follower).exists())
-        # Проверяем возможность удаления
-        Follow.objects.get(user=FollowCreateEditTests.user_follower).delete()
+        # Проверяем отписку
+        self.authorized_client.post(
+            reverse('posts:profile_unfollow',
+                    args=[FollowCreateEditTests.user]),
+            follow=True
+        )
         self.assertFalse(Follow.objects.filter(
             user=FollowCreateEditTests.user_follower).exists())
 
