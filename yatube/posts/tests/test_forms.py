@@ -3,12 +3,12 @@ import tempfile
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from ..models import Post, Group, Follow
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
+from ..models import Post, Group, Follow
 from ..forms import PostForm
 
 
@@ -48,7 +48,6 @@ class PostCreateEditFormTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostCreateEditFormTests.user)
         self.small_gif = (
@@ -81,6 +80,7 @@ class PostCreateEditFormTests(TestCase):
             follow=True
         )
         new_post = Post.objects.filter(text='Тестовый текст')[0]
+        image_path = 'posts/small.gif'
         # Проверяем, сработал ли редирект
         self.assertRedirects(response, reverse(
             'posts:profile', args=[PostCreateEditFormTests.user.username]))
@@ -89,7 +89,7 @@ class PostCreateEditFormTests(TestCase):
         # Проверяем, содержание нового поста
         self.assertEqual(new_post.author, PostCreateEditFormTests.user)
         self.assertEqual(new_post.group, PostCreateEditFormTests.group)
-        self.assertEqual(new_post.image, 'posts/small.gif')
+        self.assertEqual(new_post.image, image_path)
 
     def test_comment_redirect_anonymous_on_login(self):
         """Незарегистрированный пользователь пытается комментировать пост."""
@@ -97,7 +97,7 @@ class PostCreateEditFormTests(TestCase):
             'text': 'Тестовый текст комментария',
         }
         # Отправляем POST-запрос
-        response = self.guest_client.post(
+        response = self.client.post(
             reverse('posts:add_comment',
                     args=[PostCreateEditFormTests.post.id]),
             data=form_data,
@@ -172,7 +172,7 @@ class PostCreateEditFormTests(TestCase):
             'password2': 'test_password',
         }
         # Отправляем POST-запрос
-        self.guest_client.post(
+        self.client.post(
             reverse('users:signup'),
             data=form_data,
             follow=True
@@ -207,12 +207,21 @@ class FollowCreateEditTests(TestCase):
             FollowCreateEditTests.third_person)
 
     def test_authenticated_user_follow_unfollow(self):
-        """Авторизованный пользователь может подписываться
-        на других пользователей и удалять их из подписок."""
+        """Авторизованный пользователь подписывается
+        на других пользователей."""
         self.authorized_client.post(
             reverse('posts:profile_follow',
                     args=[FollowCreateEditTests.user]),
             follow=True
+        )
+        self.assertTrue(Follow.objects.filter(
+            user=FollowCreateEditTests.user_follower).exists())
+
+    def test_authenticated_user_follow_unfollow(self):
+        """Авторизованный пользователь может удалять из подписок."""
+        Follow.objects.create(
+            user=FollowCreateEditTests.user_follower,
+            author=FollowCreateEditTests.user
         )
         self.assertTrue(Follow.objects.filter(
             user=FollowCreateEditTests.user_follower).exists())

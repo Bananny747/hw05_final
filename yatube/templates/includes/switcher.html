@@ -3,6 +3,7 @@
     <ul class="nav nav-tabs">
       <li class="nav-item">
         <a 
+          {% comment %} переменная index передается в контексте во вьюхе index {% endcomment %}
           class="nav-link {% if index %}active{% endif %}"
           href="{% url 'posts:index' %}"
         >
@@ -11,8 +12,9 @@
       </li>
       <li class="nav-item">
         <a 
-           class="nav-link {% if follow %}active{% endif %}"
-           href="{% url 'posts:follow_index' %}"
+          {% comment %} переменная follow передается в контексте во вьюхе follow_index {% endcomment %}
+          class="nav-link {% if follow %}active{% endif %}"
+          href="{% url 'posts:follow_index' %}"
         >
           Избранные авторы
         </a>
